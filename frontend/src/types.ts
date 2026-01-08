@@ -12,6 +12,11 @@ export type Player = {
   base_price: number;
   photo_path: string;
 
+  can_bat: boolean;
+  can_bowl: boolean;
+  can_wicket_keep: boolean;
+  can_field: boolean;
+
   current_price: number;
   next_price: number;
 

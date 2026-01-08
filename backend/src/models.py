@@ -3,7 +3,10 @@ from __future__ import annotations
 import asyncio
 import csv
 from functools import cache
+import io
 import json
+import re
+from urllib.parse import quote
 from datetime import datetime
 from enum import Enum
 from typing import Any
@@ -49,9 +52,14 @@ class Bid(BaseModel):
 
 class Player(BaseModel):
     name: str
-    info: str
+    info: str = ""
     base_price: int = 0
     photo_path: str
+
+    can_bat: bool = False
+    can_bowl: bool = False
+    can_wicket_keep: bool = False
+    can_field: bool = False
 
     # Derived by the store/state machine; kept on the model for the frontend.
     current_price: int = BASE_PRICE_DEFAULT
@@ -87,7 +95,9 @@ class Team(BaseModel):
 
     def add_player(self, player: Player) -> None:
         final_amount = player.bids[-1].amount
-        self.wallet -= final_amount + BASE_PRICE_DEFAULT #cashback for the player
+        # Cashback: refund BASE_PRICE_DEFAULT for every player bought.
+        # Net debit = final_amount - BASE_PRICE_DEFAULT.
+        self.wallet -= max(0, final_amount - BASE_PRICE_DEFAULT)
         self.players.append(player)
 
 
@@ -157,7 +167,12 @@ class State(BaseModel):
             if raw.startswith("/photos/"):
                 return raw
             filename = Path(raw).name
-            return f"/photos/{filename}" if filename else ""
+            if not filename:
+                return ""
+            # If the local path indicates the nested photos/photos directory, preserve it.
+            if "data/photos/photos" in raw.replace("\\", "/") or "/photos/photos/" in raw.replace("\\", "/"):
+                return f"/photos/photos/{quote(filename)}"
+            return f"/photos/{quote(filename)}"
 
         if self.current_player is not None:
             self.current_player.photo_path = norm(self.current_player.photo_path)
@@ -197,31 +212,48 @@ class State(BaseModel):
             return []
 
         players: list[Player] = []
-        with open(PLAYERS_CSV_PATH, "r", encoding="utf-8-sig", newline="") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                # Expected columns (case-sensitive):
-                # - name
-                # - info
-                # - photo_path (optional)
-                name = (row.get("name") or "").strip()
-                if not name:
-                    continue
+        raw = PLAYERS_CSV_PATH.read_text(encoding="utf-8-sig")
+        raw = raw.lstrip()  # tolerate accidental leading blank lines
+        f = io.StringIO(raw)
 
-                info = (row.get("info") or "").strip()
-                photo_path_raw = (row.get("photo_path") or "").strip()
-                # CSV may provide an absolute local path for convenience during setup;
-                # normalize to a browser-loadable URL served by the backend.
-                photo_filename = Path(photo_path_raw).name if photo_path_raw else ""
-                photo_path = f"/photos/{photo_filename}" if photo_filename else ""
+        def norm_key(k: str) -> str:
+            # Collapse whitespace (incl. embedded newlines like "Wicket \nKeeper") into a single space.
+            return re.sub(r"\s+", " ", (k or "").strip())
 
-                players.append(
-                    Player(
-                        name=name,
-                        info=info,
-                        photo_path=photo_path,
-                    )
+        reader = csv.DictReader(f)
+        for row0 in reader:
+            # Normalize header keys once per row
+            row = {norm_key(k): v for k, v in (row0 or {}).items() if k is not None}
+
+            name = (row.get("Name") or "").strip()
+            if not name:
+                continue
+
+            def parse_bool(v: str | None) -> bool:
+                s = (v or "").strip().lower()
+                return s in {"true", "yes", "y", "1"}
+
+            can_bat = parse_bool(row.get("Batsman"))
+            can_bowl = parse_bool(row.get("Bowler"))
+            can_wk = parse_bool(row.get("Wicket Keeper"))
+            can_field = parse_bool(row.get("Fielder"))
+
+            photo_link = (row.get("Photo Link") or "").strip()
+            # Photos stored in backend/data/photos/photos/<Photo Link>
+            photo_filename = Path(photo_link).name if photo_link else ""
+            photo_path = f"/photos/photos/{quote(photo_filename)}" if photo_filename else ""
+
+            players.append(
+                Player(
+                    name=name,
+                    info="",
+                    photo_path=photo_path,
+                    can_bat=can_bat,
+                    can_bowl=can_bowl,
+                    can_wicket_keep=can_wk,
+                    can_field=can_field,
                 )
+            )
 
         return players
 

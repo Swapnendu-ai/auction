@@ -3,6 +3,7 @@ import { usePollingState } from "../hooks/usePollingState";
 import type { Player, Team } from "../types";
 import { PlayerPhoto } from "../components/PlayerPhoto";
 import { useState } from "react";
+import { RoleBadges } from "../components/RoleBadges";
 
 function lastBid(player: Player | null) {
   if (!player || player.bids.length === 0) return null;
@@ -48,7 +49,7 @@ export function AuctioneerView() {
               <PlayerPhoto src={player.photo_path} alt={player.name} size={720} />
               <div style={styles.playerMeta}>
                 <div style={styles.playerName}>{player.name}</div>
-                <div style={styles.playerInfo}>{player.info}</div>
+                <RoleBadges player={player} />
                 <div style={styles.smallRow}>
                   <span style={styles.k}>Base</span>
                   <span style={styles.v}>{player.base_price}</span>

@@ -4,6 +4,7 @@ import { usePollingState } from "../hooks/usePollingState";
 import type { TeamName } from "../types";
 import { PlayerPhoto } from "../components/PlayerPhoto";
 import { navigateToAuctioneer } from "../router";
+import { RoleBadges } from "../components/RoleBadges";
 
 const TEAMS: TeamName[] = ["Red", "Blue", "Green", "Yellow"];
 
@@ -124,7 +125,7 @@ export function TeamView(props: { teamParam?: string }) {
                 <PlayerPhoto src={currentPlayer.photo_path} alt={currentPlayer.name} size={140} />
                 <div style={{ flex: 1 }}>
                   <div style={styles.playerName}>{currentPlayer.name}</div>
-                  <div style={styles.muted}>{currentPlayer.info}</div>
+                  <RoleBadges player={currentPlayer} />
                 </div>
               </div>
               <div style={styles.metaRow}>
