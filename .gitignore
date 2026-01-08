@@ -1,0 +1,38 @@
+### OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+### Env files / secrets
+.env
+.env.*
+
+### Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+### Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+### Images (keep ignored by default, but allow tracked player photos)
+*.jpeg
+*.jpg
+*.png
+*.JPEG
+*.JPG
+*.PNG
+
+### PII (never commit)
+backend/data/photos/*
+!backend/data/photos/.gitkeep
